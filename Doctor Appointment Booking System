@@ -1,0 +1,269 @@
+#include <iostream>
+#include <string>
+#include <stack>
+#include <queue>
+
+using namespace std;
+
+// Appointment Node structure
+struct Appointment {
+    char slot;
+    string patientName;
+    int timestamp;  // Simplified timestamp using int for simplicity
+    bool reminderSet;
+    Appointment* next;
+
+    Appointment(char s, string name, int time)
+        : slot(s), patientName(name), timestamp(time), reminderSet(false), next(NULL) {}
+};
+
+// Binary Search Tree for managing time slots
+class BST {
+private:
+    struct TreeNode {
+        char slot;
+        TreeNode* left;
+        TreeNode* right;
+        TreeNode(char s) : slot(s), left(NULL), right(NULL) {}
+    };
+    TreeNode* root;
+
+    TreeNode* insert(TreeNode* root, char slot) {
+        if (root == NULL) return new TreeNode(slot);
+        if (slot < root->slot) {
+            root->left = insert(root->left, slot);
+        } else if (slot > root->slot) {
+            root->right = insert(root->right, slot);
+        }
+        return root;
+    }
+
+    bool search(TreeNode* root, char slot) {
+        if (root == NULL) return false;
+        if (root->slot == slot) return true;
+        return slot < root->slot ? search(root->left, slot) : search(root->right, slot);
+    }
+
+public:
+    BST() : root(NULL) {}
+
+    void insert(char slot) {
+        root = insert(root, slot);
+    }
+
+    bool search(char slot) {
+        return search(root, slot);
+    }
+};
+
+// DoctorAppointmentSystem class
+class DoctorAppointmentSystem {
+private:
+    Appointment* head;
+    BST slotsBST;  // Binary Search Tree for slot management
+    stack<Appointment*> canceledAppointments;  // Stack for canceled appointments
+    queue<Appointment*> reminders;  // Queue for reminders
+
+public:
+    DoctorAppointmentSystem() : head(NULL) {}
+
+    // Book a new appointment
+    void bookAppointment() {
+        system("cls");
+        displayAvailableSlots();
+
+        char choice;
+        cout << "\n\nInput your choice: ";
+        cin >> choice;
+
+        // Validate and search slot availability using BST
+        if (!slotsBST.search(choice)) {
+            cout << "\nError: Invalid or already booked slot.";
+            cout << "\nPress any key to continue.";
+            getchar();
+            getchar();
+            return;
+        }
+
+        // Get patient name
+        string name;
+        cout << "\nEnter your first name: ";
+        cin >> name;
+
+        // Simplified timestamp using the current hour (you can change this logic to suit your needs)
+        int timestamp = 9 + (choice - 'A');  // Example: A = 9 AM, B = 10 AM, ...
+
+        // Create a new appointment
+        Appointment* newAppointment = new Appointment(choice, name, timestamp);
+
+        // Insert at the beginning of the linked list
+        newAppointment->next = head;
+        head = newAppointment;
+
+        cout << "\nAppointment booked for Hours: " << choice << " successfully!";
+        setReminder(newAppointment);
+        cout << "\nPlease press any key to continue..";
+        getchar();
+        getchar();
+    }
+
+    void displayExistingAppointments() {
+        system("cls");
+        cout << "\n----- Appointments Summary -----\n";
+
+        Appointment* current = head;
+        Appointment* appointments[100]; // Static array to store appointments for sorting
+        int count = 0;
+        
+        while (current != NULL) {
+            appointments[count++] = current;
+            current = current->next;
+        }
+
+        // Sorting appointments by time using insertion sort
+        for (int i = 1; i < count; i++) {
+            Appointment* key = appointments[i];
+            int j = i - 1;
+            while (j >= 0 && appointments[j]->timestamp > key->timestamp) {
+                appointments[j + 1] = appointments[j];
+                j--;
+            }
+            appointments[j + 1] = key;
+        }
+
+        // Display sorted appointments
+        for (int i = 0; i < count; i++) {
+            cout << " " << appointments[i]->slot << " - " << "Patient: " << appointments[i]->patientName
+                 << " - Time: " << appointments[i]->timestamp << " AM";
+            if (appointments[i]->reminderSet) {
+                cout << " - Reminder Set";
+            }
+            cout << endl;
+        }
+
+        if (count == 0) {
+            cout << "\nNo existing appointments found.";
+        }
+
+        cout << "\nPlease press any key to continue..";
+        getchar();
+        getchar();
+    }
+
+    // Cancel an existing appointment
+    void cancelAppointment() {
+        system("cls");
+        displayExistingAppointments();
+
+        char choice;
+        cout << "\n\nEnter the slot to cancel the appointment: ";
+        cin >> choice;
+
+        // Search for appointment using linear search
+        Appointment* current = head;
+        Appointment* prev = NULL;
+
+        while (current != NULL && current->slot != choice) {
+            prev = current;
+            current = current->next;
+        }
+
+        if (current == NULL) {
+            cout << "\nError: Appointment not found.";
+            cout << "\nPress any key to continue.";
+            getchar();
+            getchar();
+            return;
+        }
+
+        // Remove from linked list and push to stack
+        if (prev == NULL) {
+            head = current->next;
+        } else {
+            prev->next = current->next;
+        }
+
+        canceledAppointments.push(current);
+        cout << "\nAppointment canceled for Hours: " << choice << " successfully!";
+        cout << "\nPress any key to continue.";
+        getchar();
+        getchar();
+    }
+
+private:
+    // Display available slots (BST used for managing slots)
+    void displayAvailableSlots() {
+        cout << "\n----- Available Slots -----\n";
+        char key = 'A';
+        for (int i = 9; i <= 21; i++) {
+            slotsBST.insert(key);  // Insert slot in BST for searching later
+            cout << " " << key << " -> " << (i < 10 ? "0" : "") << i << "\n";
+            key++;
+        }
+    }
+
+    // Set a reminder for an appointment
+    void setReminder(Appointment* appointment) {
+        cout << "\nDo you want to set a reminder for this appointment? (y/n): ";
+        char choice;
+        cin >> choice;
+
+        if (choice == 'y' || choice == 'Y') {
+            appointment->reminderSet = true;
+            reminders.push(appointment);  // Add to reminder queue
+            cout << "\nReminder set successfully!";
+        }
+    }
+};
+
+int main() {
+    DoctorAppointmentSystem appointmentSystem;
+
+    while (true) {
+        system("cls");
+        cout << "\t\t\tDoctor Appointment System\n";
+        cout << "----------------------------------------\n\n";
+        cout << "1. Book Appointment\n";
+        cout << "2. Check Existing Appointments\n";
+        cout << "3. Cancel Appointment\n";
+        cout << "0. Exit\n";
+
+        int choice;
+        cout << "\nEnter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                appointmentSystem.bookAppointment();
+                break;
+            case 2:
+                appointmentSystem.displayExistingAppointments();
+                break;
+            case 3:
+                appointmentSystem.cancelAppointment();
+                break;
+            case 0:
+                while (true) {
+                    system("cls");
+                    cout << "\nAre you sure you want to exit? (y/n)\n";
+                    char ex;
+                    cin >> ex;
+                    if (ex == 'y' || ex == 'Y') {
+                        exit(0);
+                    } else if (ex == 'n' || ex == 'N') {
+                        break;
+                    } else {
+                        cout << "\nInvalid choice!";
+                        getchar();
+                    }
+                }
+                break;
+            default:
+                cout << "\nInvalid choice. Please enter again.";
+                getchar();
+        }
+    }
+
+    return 0;
+}
+
